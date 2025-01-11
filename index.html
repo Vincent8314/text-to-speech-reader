@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Text-to-Speech Reader</title>
     <style>
         :root {
@@ -20,9 +20,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, var(--bg-color) 0%, #e0f2fe 100%);
             color: var(--text-color);
+            overflow-x: hidden;
         }
 
         .container {
@@ -35,6 +36,7 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
 
+        /* Le reste des styles restent identiques à votre version originale */
         h1 {
             color: var(--primary-color);
             text-align: center;
@@ -43,8 +45,8 @@
         }
 
         .upload-zone {
-            width: 80%; /* Réduit la largeur à 80% pour s'assurer qu'il est bien centré */
-            margin: 0 auto; /* Centre l'élément horizontalement */
+            width: 80%;
+            margin: 0 auto;
             padding: 20px;
             background-color: #f8fafc;
             border: 2px dashed var(--primary-color);
@@ -169,9 +171,14 @@
         }
 
         @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
             .container {
-                width: 95%;
-                padding: 20px;
+                width: calc(100% - 20px);
+                padding: 15px;
+                margin: 10px;
             }
 
             .controls {
@@ -184,6 +191,11 @@
             }
 
             button {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .upload-zone {
                 width: 100%;
             }
         }
@@ -229,6 +241,18 @@
     <script>
         let speechSynth = window.speechSynthesis;
         let currentUtterance = null;
+        let defaultFrenchVoice = null;
+
+        function isIOS() {
+            return [
+                'iPad Simulator',
+                'iPhone Simulator',
+                'iPod Simulator',
+                'iPad',
+                'iPhone',
+                'iPod'
+            ].includes(navigator.platform) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+        }
 
         function populateVoiceList() {
             const voiceSelect = document.getElementById('voice-select');
@@ -238,10 +262,22 @@
             const frenchVoices = voices.filter(voice => voice.lang.includes('fr'));
             const otherVoices = voices.filter(voice => !voice.lang.includes('fr'));
             
+            if (frenchVoices.length > 0) {
+                defaultFrenchVoice = frenchVoices.find(voice => 
+                    voice.name.toLowerCase().includes('thomas') || 
+                    voice.name.toLowerCase().includes('amelie') ||
+                    voice.name.toLowerCase().includes('french') ||
+                    voice.name.toLowerCase().includes('français')
+                ) || frenchVoices[0];
+            }
+
             [...frenchVoices, ...otherVoices].forEach((voice, index) => {
                 const option = document.createElement('option');
                 option.textContent = `${voice.name} (${voice.lang})`;
                 option.value = voices.indexOf(voice);
+                if (voice === defaultFrenchVoice) {
+                    option.selected = true;
+                }
                 voiceSelect.appendChild(option);
             });
         }
@@ -292,33 +328,31 @@
         }
 
         // Contrôles de lecture
-  // Lecture du texte
-document.getElementById('play-button').addEventListener('click', () => {
-    if (speechSynth.speaking) {
-        speechSynth.cancel();
-    }
+        document.getElementById('play-button').addEventListener('click', () => {
+            if (speechSynth.speaking) {
+                speechSynth.cancel();
+            }
 
-    const text = document.getElementById('text-area').value.trim();
-    if (text) {
-        // Supprimer les sauts de ligne (en remplaçant par des espaces)
-        const textWithoutLineBreaks = text.replace(/\n/g, ' ');
+            const text = document.getElementById('text-area').value.trim();
+            if (text) {
+                const textWithoutLineBreaks = text.replace(/\n/g, ' ');
+                currentUtterance = new SpeechSynthesisUtterance(textWithoutLineBreaks);
+                
+                if (isIOS() && defaultFrenchVoice) {
+                    currentUtterance.voice = defaultFrenchVoice;
+                } else {
+                    const selectedVoice = document.getElementById('voice-select').value;
+                    const voices = speechSynth.getVoices();
+                    currentUtterance.voice = voices[selectedVoice];
+                }
+                
+                currentUtterance.rate = parseFloat(document.getElementById('speed').value);
+                currentUtterance.lang = 'fr-FR';
 
-        currentUtterance = new SpeechSynthesisUtterance(textWithoutLineBreaks);
-        const selectedVoice = document.getElementById('voice-select').value;
-        const voices = speechSynth.getVoices();
-        currentUtterance.voice = voices[selectedVoice];
-        currentUtterance.rate = parseFloat(document.getElementById('speed').value);
+                speechSynth.speak(currentUtterance);
+            }
+        });
 
-        // Mise à jour de l'état
-        currentUtterance.onstart = () => updateStatus("Lecture en cours...");
-        currentUtterance.onend = () => updateStatus("Lecture terminée.");
-        currentUtterance.onerror = () => updateStatus("Erreur lors de la lecture.");
-
-        speechSynth.speak(currentUtterance);
-    } else {
-        updateStatus("Veuillez entrer du texte à lire.");
-    }
-});
         document.getElementById('pause-button').addEventListener('click', () => {
             if (speechSynth.speaking) {
                 if (speechSynth.paused) {
