@@ -285,21 +285,18 @@
             const voices = speechSynth.getVoices();
             
             if (isMobileDevice()) {
-                // Pour iPhone : principalement Thomas
+                // Pour iPhone : Thomas + voix anglaise native
                 const thomasVoice = voices.find(voice => 
                     voice.name.includes('Thomas') && 
                     voice.lang === 'fr-FR'
                 );
 
-                // Autres voix françaises natives (sans accent)
-                const nativeFrenchVoices = voices.filter(voice => 
-                    voice.lang === 'fr-FR' && 
-                    !voice.name.includes('Thomas') &&
-                    !voice.name.toLowerCase().includes('canada') &&
-                    !voice.name.toLowerCase().includes('québec')
+                const englishVoice = voices.find(voice => 
+                    voice.lang === 'en-US' && 
+                    (voice.name.includes('Samantha') || voice.name.includes('Alex'))
                 );
 
-                // Ajouter Thomas en premier
+                // Ajouter Thomas
                 if (thomasVoice) {
                     const option = document.createElement('option');
                     option.textContent = `${thomasVoice.name} (${thomasVoice.lang})`;
@@ -308,13 +305,13 @@
                     voiceSelect.appendChild(option);
                 }
 
-                // Ajouter les autres voix françaises natives s'il y en a
-                nativeFrenchVoices.forEach(voice => {
+                // Ajouter la voix anglaise
+                if (englishVoice) {
                     const option = document.createElement('option');
-                    option.textContent = `${voice.name} (${voice.lang})`;
-                    option.value = voices.indexOf(voice);
+                    option.textContent = `${englishVoice.name} (${englishVoice.lang})`;
+                    option.value = voices.indexOf(englishVoice);
                     voiceSelect.appendChild(option);
-                });
+                }
             } else {
                 // Pour PC : toutes les voix sauf Google
                 voices
@@ -328,6 +325,7 @@
             }
         }
 
+        // Initialiser la liste des voix dès que possible
         if (speechSynth.onvoiceschanged !== undefined) {
             speechSynth.onvoiceschanged = populateVoiceList;
         }
