@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Text-to-Speech Reader</title>
     <style>
         :root {
@@ -15,7 +15,7 @@
 
         body {
             margin: 0;
-            padding: 20px;
+            padding: 0;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -24,6 +24,8 @@
             background: linear-gradient(135deg, var(--bg-color) 0%, #e0f2fe 100%);
             color: var(--text-color);
             overflow-x: hidden;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .container {
@@ -34,9 +36,9 @@
             background-color: var(--container-bg);
             border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            box-sizing: border-box;
         }
 
-        /* Le reste des styles restent identiques à votre version originale */
         h1 {
             color: var(--primary-color);
             text-align: center;
@@ -54,6 +56,7 @@
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
+            box-sizing: border-box;
         }
 
         .upload-zone:hover {
@@ -70,12 +73,14 @@
             background-color: #f8fafc;
             border-radius: 12px;
             flex-wrap: wrap;
+            box-sizing: border-box;
         }
 
         .control-group {
             display: flex;
             align-items: center;
             gap: 10px;
+            flex: 1;
         }
 
         label {
@@ -92,6 +97,7 @@
             transition: all 0.3s ease;
             cursor: pointer;
             min-width: 120px;
+            flex: 1;
         }
 
         select:hover {
@@ -123,6 +129,7 @@
             gap: 15px;
             justify-content: center;
             margin-top: 30px;
+            width: 100%;
         }
 
         button {
@@ -137,6 +144,8 @@
             align-items: center;
             gap: 8px;
             font-weight: 500;
+            justify-content: center;
+            flex: 1;
         }
 
         #play-button {
@@ -172,31 +181,54 @@
 
         @media (max-width: 768px) {
             body {
-                padding: 10px;
+                padding: 0;
+                margin: 0;
+                width: 100vw;
             }
             
             .container {
-                width: calc(100% - 20px);
+                width: 100%;
+                margin: 0;
                 padding: 15px;
-                margin: 10px;
+                border-radius: 0;
             }
 
             .controls {
                 flex-direction: column;
                 align-items: stretch;
+                width: 100%;
+                margin: 10px 0;
+                gap: 10px;
+            }
+
+            .control-group {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            select {
+                width: 100%;
             }
 
             .button-container {
                 flex-direction: column;
+                width: 100%;
+                gap: 10px;
             }
 
             button {
                 width: 100%;
-                justify-content: center;
             }
 
             .upload-zone {
                 width: 100%;
+                margin: 10px 0;
+            }
+            
+            #text-area {
+                width: 100%;
+                margin: 10px 0;
             }
         }
     </style>
@@ -241,49 +273,47 @@
     <script>
         let speechSynth = window.speechSynthesis;
         let currentUtterance = null;
-        let defaultFrenchVoice = null;
 
-        function isIOS() {
-            return [
-                'iPad Simulator',
-                'iPhone Simulator',
-                'iPod Simulator',
-                'iPad',
-                'iPhone',
-                'iPod'
-            ].includes(navigator.platform) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
-        }
-
-        function populateVoiceList() {
-            const voiceSelect = document.getElementById('voice-select');
-            voiceSelect.innerHTML = '';
-            
-            const voices = speechSynth.getVoices();
-            const frenchVoices = voices.filter(voice => voice.lang.includes('fr'));
-            const otherVoices = voices.filter(voice => !voice.lang.includes('fr'));
-            
-            if (frenchVoices.length > 0) {
-                defaultFrenchVoice = frenchVoices.find(voice => 
-                    voice.name.toLowerCase().includes('thomas') || 
-                    voice.name.toLowerCase().includes('amelie') ||
-                    voice.name.toLowerCase().includes('french') ||
-                    voice.name.toLowerCase().includes('français')
-                ) || frenchVoices[0];
-            }
-
-            [...frenchVoices, ...otherVoices].forEach((voice, index) => {
-                const option = document.createElement('option');
-                option.textContent = `${voice.name} (${voice.lang})`;
-                option.value = voices.indexOf(voice);
-                if (voice === defaultFrenchVoice) {
-                    option.selected = true;
+        function loadVoices() {
+            return new Promise((resolve) => {
+                let voices = speechSynth.getVoices();
+                if (voices.length !== 0) {
+                    resolve(voices);
+                } else {
+                    speechSynth.onvoiceschanged = () => {
+                        voices = speechSynth.getVoices();
+                        resolve(voices);
+                    };
                 }
-                voiceSelect.appendChild(option);
             });
         }
 
-        if (speechSynth.onvoiceschanged !== undefined) {
-            speechSynth.onvoiceschanged = populateVoiceList;
+        async function populateVoiceList() {
+            const voiceSelect = document.getElementById('voice-select');
+            const voices = await loadVoices();
+            
+            voiceSelect.innerHTML = '';
+            
+            // Filtrer et trier les voix
+            const frenchVoices = voices.filter(voice => voice.lang.includes('fr'));
+            const otherVoices = voices.filter(voice => !voice.lang.includes('fr'));
+            
+            // Combiner les voix françaises en premier
+            const allVoices = [...frenchVoices, ...otherVoices];
+            
+            allVoices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.value = index;
+                option.dataset.voiceUri = voice.voiceURI;
+                voiceSelect.appendChild(option);
+            });
+
+            // Sélectionner une voix française par défaut si disponible
+            if (frenchVoices.length > 0) {
+                const defaultVoiceIndex = allVoices.indexOf(frenchVoices[0]);
+                voiceSelect.value = defaultVoiceIndex;
+            }
         }
 
         // Gestion du fichier
@@ -328,24 +358,22 @@
         }
 
         // Contrôles de lecture
-        document.getElementById('play-button').addEventListener('click', () => {
+        document.getElementById('play-button').addEventListener('click', async () => {
             if (speechSynth.speaking) {
                 speechSynth.cancel();
             }
 
-            const text = document.getElementById('text-area').value.trim();
+            const text = textArea.value.trim();
             if (text) {
                 const textWithoutLineBreaks = text.replace(/\n/g, ' ');
                 currentUtterance = new SpeechSynthesisUtterance(textWithoutLineBreaks);
                 
-                if (isIOS() && defaultFrenchVoice) {
-                    currentUtterance.voice = defaultFrenchVoice;
-                } else {
-                    const selectedVoice = document.getElementById('voice-select').value;
-                    const voices = speechSynth.getVoices();
-                    currentUtterance.voice = voices[selectedVoice];
-                }
+                // Récupérer la voix sélectionnée
+                const voices = await loadVoices();
+                const selectedIndex = document.getElementById('voice-select').value;
+                currentUtterance.voice = voices[selectedIndex];
                 
+                // Paramètres supplémentaires
                 currentUtterance.rate = parseFloat(document.getElementById('speed').value);
                 currentUtterance.lang = 'fr-FR';
 
@@ -367,6 +395,7 @@
             speechSynth.cancel();
         });
 
+        // Initialisation
         populateVoiceList();
     </script>
 </body>
