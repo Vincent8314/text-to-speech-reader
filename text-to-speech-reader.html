@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text-to-Speech Reader</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f0f9ff;
+            --container-bg: #ffffff;
+            --text-color: #1e293b;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-color) 0%, #e0f2fe 100%);
+            color: var(--text-color);
+        }
+
+        .container {
+            width: 90%;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 30px;
+            background-color: var(--container-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+        }
+
+        .upload-zone {
+            width: 80%; /* Réduit la largeur à 80% pour s'assurer qu'il est bien centré */
+            margin: 0 auto; /* Centre l'élément horizontalement */
+            padding: 20px;
+            background-color: #f8fafc;
+            border: 2px dashed var(--primary-color);
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-zone:hover {
+            background-color: #f0f9ff;
+            border-color: var(--primary-hover);
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8fafc;
+            border-radius: 12px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: 500;
+            color: #475569;
+        }
+
+        select {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            background-color: white;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
+        select:hover {
+            border-color: var(--primary-color);
+        }
+
+        #text-area {
+            width: 100%;
+            min-height: 300px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            line-height: 1.6;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        #text-area:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .button-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+
+        #play-button {
+            background-color: var(--primary-color);
+        }
+
+        #play-button:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        #pause-button {
+            background-color: #6366f1;
+        }
+
+        #pause-button:hover {
+            background-color: #4f46e5;
+            transform: translateY(-2px);
+        }
+
+        #stop-button {
+            background-color: #ef4444;
+        }
+
+        #stop-button:hover {
+            background-color: #dc2626;
+            transform: translateY(-2px);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                width: 95%;
+                padding: 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .button-container {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ Text-to-Speech Reader</h1>
+
+        <div class="upload-zone" id="dropZone">
+            <input type="file" id="fileInput" class="file-input" accept=".txt">
+            <p>📄 Glissez-déposez un fichier texte ici<br>ou cliquez pour choisir un fichier</p>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="voice-select">🎤 Voix:</label>
+                <select id="voice-select"></select>
+            </div>
+            
+            <div class="control-group">
+                <label for="speed">⚡ Vitesse:</label>
+                <select id="speed">
+                    <option value="0.5">0.5x</option>
+                    <option value="0.75">0.75x</option>
+                    <option value="1" selected>1x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                    <option value="2">2x</option>
+                </select>
+            </div>
+        </div>
+
+        <textarea id="text-area" placeholder="Collez votre texte ici pour commencer la lecture..."></textarea>
+        
+        <div class="button-container">
+            <button id="play-button">▶️ Lire</button>
+            <button id="pause-button">⏸️ Pause</button>
+            <button id="stop-button">⏹️ Stop</button>
+        </div>
+    </div>
+
+    <script>
+        let speechSynth = window.speechSynthesis;
+        let currentUtterance = null;
+
+        function populateVoiceList() {
+            const voiceSelect = document.getElementById('voice-select');
+            voiceSelect.innerHTML = '';
+            
+            const voices = speechSynth.getVoices();
+            const frenchVoices = voices.filter(voice => voice.lang.includes('fr'));
+            const otherVoices = voices.filter(voice => !voice.lang.includes('fr'));
+            
+            [...frenchVoices, ...otherVoices].forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.value = voices.indexOf(voice);
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        if (speechSynth.onvoiceschanged !== undefined) {
+            speechSynth.onvoiceschanged = populateVoiceList;
+        }
+
+        // Gestion du fichier
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const textArea = document.getElementById('text-area');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        dropZone.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDrop(e) {
+            const file = e.dataTransfer.files[0];
+            readFile(file);
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            readFile(file);
+        }
+
+        function readFile(file) {
+            if (file && file.type === 'text/plain') {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    textArea.value = e.target.result;
+                };
+                reader.readAsText(file);
+            } else {
+                alert('Veuillez sélectionner un fichier texte (.txt)');
+            }
+        }
+
+        // Contrôles de lecture
+  // Lecture du texte
+document.getElementById('play-button').addEventListener('click', () => {
+    if (speechSynth.speaking) {
+        speechSynth.cancel();
+    }
+
+    const text = document.getElementById('text-area').value.trim();
+    if (text) {
+        // Supprimer les sauts de ligne (en remplaçant par des espaces)
+        const textWithoutLineBreaks = text.replace(/\n/g, ' ');
+
+        currentUtterance = new SpeechSynthesisUtterance(textWithoutLineBreaks);
+        const selectedVoice = document.getElementById('voice-select').value;
+        const voices = speechSynth.getVoices();
+        currentUtterance.voice = voices[selectedVoice];
+        currentUtterance.rate = parseFloat(document.getElementById('speed').value);
+
+        // Mise à jour de l'état
+        currentUtterance.onstart = () => updateStatus("Lecture en cours...");
+        currentUtterance.onend = () => updateStatus("Lecture terminée.");
+        currentUtterance.onerror = () => updateStatus("Erreur lors de la lecture.");
+
+        speechSynth.speak(currentUtterance);
+    } else {
+        updateStatus("Veuillez entrer du texte à lire.");
+    }
+});
+        document.getElementById('pause-button').addEventListener('click', () => {
+            if (speechSynth.speaking) {
+                if (speechSynth.paused) {
+                    speechSynth.resume();
+                } else {
+                    speechSynth.pause();
+                }
+            }
+        });
+
+        document.getElementById('stop-button').addEventListener('click', () => {
+            speechSynth.cancel();
+        });
+
+        populateVoiceList();
+    </script>
+</body>
+</html>
