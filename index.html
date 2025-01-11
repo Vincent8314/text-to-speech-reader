@@ -86,6 +86,7 @@
         label {
             font-weight: 500;
             color: #475569;
+            white-space: nowrap;
         }
 
         select {
@@ -274,46 +275,25 @@
         let speechSynth = window.speechSynthesis;
         let currentUtterance = null;
 
-        function loadVoices() {
-            return new Promise((resolve) => {
-                let voices = speechSynth.getVoices();
-                if (voices.length !== 0) {
-                    resolve(voices);
-                } else {
-                    speechSynth.onvoiceschanged = () => {
-                        voices = speechSynth.getVoices();
-                        resolve(voices);
-                    };
-                }
-            });
-        }
-
-        async function populateVoiceList() {
+        // Fonction simple de gestion des voix
+        function populateVoiceList() {
             const voiceSelect = document.getElementById('voice-select');
-            const voices = await loadVoices();
-            
             voiceSelect.innerHTML = '';
             
-            // Filtrer et trier les voix
+            const voices = speechSynth.getVoices();
             const frenchVoices = voices.filter(voice => voice.lang.includes('fr'));
             const otherVoices = voices.filter(voice => !voice.lang.includes('fr'));
             
-            // Combiner les voix françaises en premier
-            const allVoices = [...frenchVoices, ...otherVoices];
-            
-            allVoices.forEach((voice, index) => {
+            [...frenchVoices, ...otherVoices].forEach((voice, index) => {
                 const option = document.createElement('option');
                 option.textContent = `${voice.name} (${voice.lang})`;
-                option.value = index;
-                option.dataset.voiceUri = voice.voiceURI;
+                option.value = voices.indexOf(voice);
                 voiceSelect.appendChild(option);
             });
+        }
 
-            // Sélectionner une voix française par défaut si disponible
-            if (frenchVoices.length > 0) {
-                const defaultVoiceIndex = allVoices.indexOf(frenchVoices[0]);
-                voiceSelect.value = defaultVoiceIndex;
-            }
+        if (speechSynth.onvoiceschanged !== undefined) {
+            speechSynth.onvoiceschanged = populateVoiceList;
         }
 
         // Gestion du fichier
@@ -358,22 +338,20 @@
         }
 
         // Contrôles de lecture
-        document.getElementById('play-button').addEventListener('click', async () => {
+        document.getElementById('play-button').addEventListener('click', () => {
             if (speechSynth.speaking) {
                 speechSynth.cancel();
             }
 
-            const text = textArea.value.trim();
+            const text = document.getElementById('text-area').value.trim();
             if (text) {
                 const textWithoutLineBreaks = text.replace(/\n/g, ' ');
                 currentUtterance = new SpeechSynthesisUtterance(textWithoutLineBreaks);
                 
-                // Récupérer la voix sélectionnée
-                const voices = await loadVoices();
-                const selectedIndex = document.getElementById('voice-select').value;
-                currentUtterance.voice = voices[selectedIndex];
+                const selectedVoice = document.getElementById('voice-select').value;
+                const voices = speechSynth.getVoices();
+                currentUtterance.voice = voices[selectedVoice];
                 
-                // Paramètres supplémentaires
                 currentUtterance.rate = parseFloat(document.getElementById('speed').value);
                 currentUtterance.lang = 'fr-FR';
 
