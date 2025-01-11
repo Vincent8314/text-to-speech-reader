@@ -20,7 +20,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            font-family: -apple-system, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, var(--bg-color) 0%, #e0f2fe 100%);
             color: var(--text-color);
             overflow-x: hidden;
@@ -236,7 +236,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Text-to-Speech Reader</h1>
+        <h1>✨ Text-to-Speech Reader</h1>
 
         <div class="upload-zone" id="dropZone">
             <input type="file" id="fileInput" class="file-input" accept=".txt">
@@ -275,23 +275,45 @@
         let speechSynth = window.speechSynthesis;
         let currentUtterance = null;
 
-        // Fonction simple de gestion des voix
         function populateVoiceList() {
             const voiceSelect = document.getElementById('voice-select');
             voiceSelect.innerHTML = '';
             
             const voices = speechSynth.getVoices();
-            const frenchVoices = voices.filter(voice => voice.lang.includes('fr'));
-            const otherVoices = voices.filter(voice => !voice.lang.includes('fr'));
             
-            [...frenchVoices, ...otherVoices].forEach((voice, index) => {
+            // Priorité aux voix Google françaises
+            const googleFrenchVoices = voices.filter(voice => 
+                voice.name.includes('Google') && 
+                voice.lang.includes('fr')
+            );
+            
+            // Ensuite les autres voix françaises
+            const otherFrenchVoices = voices.filter(voice => 
+                !voice.name.includes('Google') && 
+                voice.lang.includes('fr')
+            );
+            
+            // Enfin les autres voix
+            const otherVoices = voices.filter(voice => 
+                !voice.lang.includes('fr')
+            );
+
+            // Ajout des voix dans l'ordre de priorité
+            [...googleFrenchVoices, ...otherFrenchVoices, ...otherVoices].forEach((voice, index) => {
                 const option = document.createElement('option');
                 option.textContent = `${voice.name} (${voice.lang})`;
                 option.value = voices.indexOf(voice);
+                
+                // Sélectionner par défaut la première voix Google française
+                if (index === 0 && voice.name.includes('Google')) {
+                    option.selected = true;
+                }
+                
                 voiceSelect.appendChild(option);
             });
         }
 
+        // Initialiser la liste des voix
         if (speechSynth.onvoiceschanged !== undefined) {
             speechSynth.onvoiceschanged = populateVoiceList;
         }
@@ -348,6 +370,7 @@
                 const textWithoutLineBreaks = text.replace(/\n/g, ' ');
                 currentUtterance = new SpeechSynthesisUtterance(textWithoutLineBreaks);
                 
+                // Utiliser la voix sélectionnée
                 const selectedVoice = document.getElementById('voice-select').value;
                 const voices = speechSynth.getVoices();
                 currentUtterance.voice = voices[selectedVoice];
