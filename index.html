@@ -275,45 +275,66 @@
         let speechSynth = window.speechSynthesis;
         let currentUtterance = null;
 
+        function isMobileDevice() {
+            return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        }
+
         function populateVoiceList() {
             const voiceSelect = document.getElementById('voice-select');
             voiceSelect.innerHTML = '';
             
             const voices = speechSynth.getVoices();
             
-            // Priorité aux voix Google françaises
-            const googleFrenchVoices = voices.filter(voice => 
-                voice.name.includes('Google') && 
-                voice.lang.includes('fr')
-            );
-            
-            // Ensuite les autres voix françaises
-            const otherFrenchVoices = voices.filter(voice => 
-                !voice.name.includes('Google') && 
-                voice.lang.includes('fr')
-            );
-            
-            // Enfin les autres voix
-            const otherVoices = voices.filter(voice => 
-                !voice.lang.includes('fr')
-            );
+            if (isMobileDevice()) {
+                // Configuration pour mobile
+                const frenchVoices = voices.filter(voice => voice.lang === 'fr-FR');
+                const thomasVoice = frenchVoices.find(voice => voice.name.includes('Thomas'));
+                const amelieVoice = frenchVoices.find(voice => voice.name.includes('Amelie'));
+                const otherFrenchVoices = frenchVoices.filter(voice => 
+                    !voice.name.includes('Thomas') && !voice.name.includes('Amelie')
+                );
+                
+                const sortedVoices = [
+                    ...(thomasVoice ? [thomasVoice] : []),
+                    ...(amelieVoice ? [amelieVoice] : []),
+                    ...otherFrenchVoices,
+                ];
 
-            // Ajout des voix dans l'ordre de priorité
-            [...googleFrenchVoices, ...otherFrenchVoices, ...otherVoices].forEach((voice, index) => {
-                const option = document.createElement('option');
-                option.textContent = `${voice.name} (${voice.lang})`;
-                option.value = voices.indexOf(voice);
+                sortedVoices.forEach((voice, index) => {
+                    const option = document.createElement('option');
+                    option.textContent = `${voice.name} (${voice.lang})`;
+                    option.value = voices.indexOf(voice);
+                    if (voice.name.includes('Thomas')) {
+                        option.selected = true;
+                    }
+                    voiceSelect.appendChild(option);
+                });
+            } else {
+                // Configuration pour PC
+                const googleFrenchVoices = voices.filter(voice => 
+                    voice.name.includes('Google') && 
+                    voice.lang.includes('fr')
+                );
+                const otherFrenchVoices = voices.filter(voice => 
+                    !voice.name.includes('Google') && 
+                    voice.lang.includes('fr')
+                );
+                const otherVoices = voices.filter(voice => 
+                    !voice.lang.includes('fr')
+                );
                 
-                // Sélectionner par défaut la première voix Google française
-                if (index === 0 && voice.name.includes('Google')) {
-                    option.selected = true;
-                }
-                
-                voiceSelect.appendChild(option);
-            });
+                [...googleFrenchVoices, ...otherFrenchVoices, ...otherVoices].forEach((voice, index) => {
+                    const option = document.createElement('option');
+                    option.textContent = `${voice.name} (${voice.lang})`;
+                    option.value = voices.indexOf(voice);
+                    if (index === 0 && voice.name.includes('Google')) {
+                        option.selected = true;
+                    }
+                    voiceSelect.appendChild(option);
+                });
+            }
         }
 
-        // Initialiser la liste des voix
         if (speechSynth.onvoiceschanged !== undefined) {
             speechSynth.onvoiceschanged = populateVoiceList;
         }
@@ -370,7 +391,6 @@
                 const textWithoutLineBreaks = text.replace(/\n/g, ' ');
                 currentUtterance = new SpeechSynthesisUtterance(textWithoutLineBreaks);
                 
-                // Utiliser la voix sélectionnée
                 const selectedVoice = document.getElementById('voice-select').value;
                 const voices = speechSynth.getVoices();
                 currentUtterance.voice = voices[selectedVoice];
