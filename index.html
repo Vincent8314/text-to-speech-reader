@@ -282,56 +282,49 @@
         function populateVoiceList() {
             const voiceSelect = document.getElementById('voice-select');
             voiceSelect.innerHTML = '';
-            
             const voices = speechSynth.getVoices();
             
             if (isMobileDevice()) {
-                // Configuration pour mobile
-                const frenchVoices = voices.filter(voice => voice.lang === 'fr-FR');
-                const thomasVoice = frenchVoices.find(voice => voice.name.includes('Thomas'));
-                const amelieVoice = frenchVoices.find(voice => voice.name.includes('Amelie'));
-                const otherFrenchVoices = frenchVoices.filter(voice => 
-                    !voice.name.includes('Thomas') && !voice.name.includes('Amelie')
+                // Pour iPhone : principalement Thomas
+                const thomasVoice = voices.find(voice => 
+                    voice.name.includes('Thomas') && 
+                    voice.lang === 'fr-FR'
                 );
-                
-                const sortedVoices = [
-                    ...(thomasVoice ? [thomasVoice] : []),
-                    ...(amelieVoice ? [amelieVoice] : []),
-                    ...otherFrenchVoices,
-                ];
 
-                sortedVoices.forEach((voice, index) => {
+                // Autres voix françaises natives (sans accent)
+                const nativeFrenchVoices = voices.filter(voice => 
+                    voice.lang === 'fr-FR' && 
+                    !voice.name.includes('Thomas') &&
+                    !voice.name.toLowerCase().includes('canada') &&
+                    !voice.name.toLowerCase().includes('québec')
+                );
+
+                // Ajouter Thomas en premier
+                if (thomasVoice) {
+                    const option = document.createElement('option');
+                    option.textContent = `${thomasVoice.name} (${thomasVoice.lang})`;
+                    option.value = voices.indexOf(thomasVoice);
+                    option.selected = true;
+                    voiceSelect.appendChild(option);
+                }
+
+                // Ajouter les autres voix françaises natives s'il y en a
+                nativeFrenchVoices.forEach(voice => {
                     const option = document.createElement('option');
                     option.textContent = `${voice.name} (${voice.lang})`;
                     option.value = voices.indexOf(voice);
-                    if (voice.name.includes('Thomas')) {
-                        option.selected = true;
-                    }
                     voiceSelect.appendChild(option);
                 });
             } else {
-                // Configuration pour PC
-                const googleFrenchVoices = voices.filter(voice => 
-                    voice.name.includes('Google') && 
-                    voice.lang.includes('fr')
-                );
-                const otherFrenchVoices = voices.filter(voice => 
-                    !voice.name.includes('Google') && 
-                    voice.lang.includes('fr')
-                );
-                const otherVoices = voices.filter(voice => 
-                    !voice.lang.includes('fr')
-                );
-                
-                [...googleFrenchVoices, ...otherFrenchVoices, ...otherVoices].forEach((voice, index) => {
-                    const option = document.createElement('option');
-                    option.textContent = `${voice.name} (${voice.lang})`;
-                    option.value = voices.indexOf(voice);
-                    if (index === 0 && voice.name.includes('Google')) {
-                        option.selected = true;
-                    }
-                    voiceSelect.appendChild(option);
-                });
+                // Pour PC : toutes les voix sauf Google
+                voices
+                    .filter(voice => !voice.name.includes('Google'))
+                    .forEach(voice => {
+                        const option = document.createElement('option');
+                        option.textContent = `${voice.name} (${voice.lang})`;
+                        option.value = voices.indexOf(voice);
+                        voiceSelect.appendChild(option);
+                    });
             }
         }
 
@@ -394,7 +387,6 @@
                 const selectedVoice = document.getElementById('voice-select').value;
                 const voices = speechSynth.getVoices();
                 currentUtterance.voice = voices[selectedVoice];
-                
                 currentUtterance.rate = parseFloat(document.getElementById('speed').value);
                 currentUtterance.lang = 'fr-FR';
 
