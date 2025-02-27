@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
     <title>Text-to-Speech Reader</title>
     <style>
         :root {
@@ -16,8 +16,16 @@
             --text-color: #1e293b;
         }
 
-        jetbrains-mono-<uniquifier> {
+        .jetbrains-mono-<uniquifier> {
               font-family: "JetBrains Mono", monospace;
+              font-optical-sizing: auto;
+              font-weight: <weight>;
+              font-style: normal;
+        }
+
+        
+        .roboto-mono-<uniquifier> {
+              font-family: "Roboto Mono", monospace;
               font-optical-sizing: auto;
               font-weight: <weight>;
               font-style: normal;
@@ -148,6 +156,8 @@
         button {
             padding: 12px 25px;
             font-size: 16px;
+            font-weight: 500;
+            font-family: "Roboto Mono", monospace;
             cursor: pointer;
             border: none;
             border-radius: 8px;
@@ -156,7 +166,6 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            font-weight: 500;
             justify-content: center;
             flex: 1;
         }
@@ -212,6 +221,9 @@
                 width: 100%;
                 margin: 10px 0;
                 gap: 10px;
+                font-size: 16px;
+                font-weight: 500;
+                font-family: "Roboto Mono", monospace;
             }
 
             .control-group {
