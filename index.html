@@ -299,8 +299,10 @@
         let speechSynth = window.speechSynthesis;
         let currentUtterance = null;
 
-        function isMobileDevice() {
-            return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        // Fonction pour afficher toutes les voix disponibles dans la console
+        function debugVoices() {
+            const voices = speechSynth.getVoices();
+            console.log("Voix disponibles:", voices.map(v => `${v.name} (${v.lang})`));
         }
 
         function populateVoiceList() {
@@ -308,50 +310,74 @@
             voiceSelect.innerHTML = '';
             const voices = speechSynth.getVoices();
             
-            if (isMobileDevice()) {
-                // Pour iPhone : Thomas + voix anglaise native
-                const thomasVoice = voices.find(voice => 
-                    voice.name.includes('Thomas') && 
-                    voice.lang === 'fr-FR'
-                );
-
-                const englishVoice = voices.find(voice => 
-                    voice.lang === 'en-US' && 
-                    (voice.name.includes('Samantha') || voice.name.includes('Alex'))
-                );
-
-                // Ajouter Thomas
-                if (thomasVoice) {
+            // Debug - afficher toutes les voix disponibles
+            debugVoices();
+            
+            // Liste des voix à exclure explicitement
+            const excludedVoices = ['Hortense', 'Google'];
+            
+            // Filtrer les voix
+            const filteredVoices = voices.filter(voice => {
+                // Exclure les voix de la liste d'exclusion
+                for (const excluded of excludedVoices) {
+                    if (voice.name.includes(excluded)) {
+                        return false;
+                    }
+                }
+                
+                // Garder uniquement les voix françaises et anglaises
+                return voice.lang.includes('fr') || voice.lang.includes('en');
+            });
+            
+            // Si on a des voix après filtrage, on les utilise
+            if (filteredVoices.length > 0) {
+                // Trier les voix françaises en premier, puis les anglaises
+                filteredVoices.sort((a, b) => {
+                    if (a.lang.includes('fr') && !b.lang.includes('fr')) return -1;
+                    if (!a.lang.includes('fr') && b.lang.includes('fr')) return 1;
+                    return 0;
+                });
+                
+                // Ajouter les voix filtrées et triées au sélecteur
+                filteredVoices.forEach((voice, index) => {
                     const option = document.createElement('option');
-                    option.textContent = `${thomasVoice.name} (${thomasVoice.lang})`;
-                    option.value = voices.indexOf(thomasVoice);
+                    option.textContent = `${voice.name} (${voice.lang})`;
+                    option.value = voices.indexOf(voice);
+                    if (index === 0) option.selected = true;
+                    voiceSelect.appendChild(option);
+                });
+            } else {
+                // Si aucune voix n'est restée après filtrage, ajouter au moins une voix
+                // Prioriser les voix françaises
+                const anyFrenchVoice = voices.find(voice => voice.lang.includes('fr') && !voice.name.includes('Google'));
+                if (anyFrenchVoice) {
+                    const option = document.createElement('option');
+                    option.textContent = `${anyFrenchVoice.name} (${anyFrenchVoice.lang})`;
+                    option.value = voices.indexOf(anyFrenchVoice);
                     option.selected = true;
                     voiceSelect.appendChild(option);
+                } else {
+                    // Si aucune voix française, ajouter la première voix disponible
+                    for (let i = 0; i < voices.length; i++) {
+                        if (!voices[i].name.includes('Google')) {
+                            const option = document.createElement('option');
+                            option.textContent = `${voices[i].name} (${voices[i].lang})`;
+                            option.value = i;
+                            option.selected = true;
+                            voiceSelect.appendChild(option);
+                            break;
+                        }
+                    }
                 }
-
-                // Ajouter la voix anglaise
-                if (englishVoice) {
-                    const option = document.createElement('option');
-                    option.textContent = `${englishVoice.name} (${englishVoice.lang})`;
-                    option.value = voices.indexOf(englishVoice);
-                    voiceSelect.appendChild(option);
-                }
-            } else {
-                // Pour PC : toutes les voix sauf Google
-                voices
-                    .filter(voice => !voice.name.includes('Google'))
-                    .forEach(voice => {
-                        const option = document.createElement('option');
-                        option.textContent = `${voice.name} (${voice.lang})`;
-                        option.value = voices.indexOf(voice);
-                        voiceSelect.appendChild(option);
-                    });
             }
         }
 
         // Initialiser la liste des voix dès que possible
         if (speechSynth.onvoiceschanged !== undefined) {
             speechSynth.onvoiceschanged = populateVoiceList;
+        } else {
+            // Fallback pour certains navigateurs
+            setTimeout(populateVoiceList, 500);
         }
 
         // Gestion du fichier
@@ -410,7 +436,13 @@
                 const voices = speechSynth.getVoices();
                 currentUtterance.voice = voices[selectedVoice];
                 currentUtterance.rate = parseFloat(document.getElementById('speed').value);
-                currentUtterance.lang = 'fr-FR';
+                
+                // Définir la langue en fonction de la voix sélectionnée
+                if (currentUtterance.voice) {
+                    currentUtterance.lang = currentUtterance.voice.lang;
+                } else {
+                    currentUtterance.lang = 'fr-FR';
+                }
 
                 speechSynth.speak(currentUtterance);
             }
@@ -431,9 +463,10 @@
         });
 
         // Initialisation
-        populateVoiceList();
+        window.addEventListener('DOMContentLoaded', () => {
+            populateVoiceList();
+        });
     </script>
 </body>
 </html>
-
 
