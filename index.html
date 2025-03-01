@@ -298,7 +298,8 @@
     <script>
         let speechSynth = window.speechSynthesis;
         let currentUtterance = null;
-
+        let voicesLoaded = false;
+        
         function isMobileDevice() {
             return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         }
@@ -313,6 +314,13 @@
             const voiceSelect = document.getElementById('voice-select');
             voiceSelect.innerHTML = '';
             const voices = speechSynth.getVoices();
+            
+            if (voices.length === 0) {
+                setTimeout(populateVoiceList, 100);
+                return;
+            }
+            
+            voicesLoaded = true;
             
             // Debug - afficher toutes les voix disponibles
             debugVoices();
@@ -361,7 +369,7 @@
                         option.value = voices.indexOf(anyFrenchVoice);
                         option.selected = true;
                         voiceSelect.appendChild(option);
-                    } else {
+                    } else if (voices.length > 0) {
                         // Si aucune voix française, ajouter la première voix disponible
                         const option = document.createElement('option');
                         option.textContent = `${voices[0].name} (${voices[0].lang})`;
@@ -406,10 +414,10 @@
         // Initialiser la liste des voix dès que possible
         if (speechSynth.onvoiceschanged !== undefined) {
             speechSynth.onvoiceschanged = populateVoiceList;
-        } else {
-            // Fallback pour certains navigateurs
-            setTimeout(populateVoiceList, 500);
         }
+        
+        // Tenter de charger les voix immédiatement aussi
+        populateVoiceList();
 
         // Gestion du fichier
         const dropZone = document.getElementById('dropZone');
@@ -452,6 +460,28 @@
             }
         }
 
+        // Découpage du texte en fragments plus petits pour éviter les problèmes de lecture
+        function chunkText(text, chunkSize = 200) {
+            const words = text.split(' ');
+            const chunks = [];
+            let currentChunk = '';
+            
+            for (const word of words) {
+                if ((currentChunk + ' ' + word).length <= chunkSize) {
+                    currentChunk += (currentChunk ? ' ' : '') + word;
+                } else {
+                    chunks.push(currentChunk);
+                    currentChunk = word;
+                }
+            }
+            
+            if (currentChunk) {
+                chunks.push(currentChunk);
+            }
+            
+            return chunks;
+        }
+        
         // Contrôles de lecture
         document.getElementById('play-button').addEventListener('click', () => {
             if (speechSynth.speaking) {
@@ -460,22 +490,54 @@
 
             const text = document.getElementById('text-area').value.trim();
             if (text) {
-                const textWithoutLineBreaks = text.replace(/\n/g, ' ');
-                currentUtterance = new SpeechSynthesisUtterance(textWithoutLineBreaks);
-                
-                const selectedVoice = document.getElementById('voice-select').value;
-                const voices = speechSynth.getVoices();
-                currentUtterance.voice = voices[selectedVoice];
-                currentUtterance.rate = parseFloat(document.getElementById('speed').value);
-                
-                // Définir la langue en fonction de la voix sélectionnée
-                if (currentUtterance.voice) {
-                    currentUtterance.lang = currentUtterance.voice.lang;
-                } else {
-                    currentUtterance.lang = 'fr-FR';
+                if (!voicesLoaded) {
+                    alert("Les voix ne sont pas encore chargées. Veuillez patienter quelques secondes et réessayer.");
+                    return;
                 }
-
-                speechSynth.speak(currentUtterance);
+                
+                const textWithoutLineBreaks = text.replace(/\n/g, ' ');
+                const chunks = chunkText(textWithoutLineBreaks);
+                
+                const voices = speechSynth.getVoices();
+                const selectedVoiceIndex = parseInt(document.getElementById('voice-select').value);
+                const selectedVoice = voices[selectedVoiceIndex];
+                const rate = parseFloat(document.getElementById('speed').value);
+                
+                // Si aucune voix n'est sélectionnée, utiliser la première disponible
+                if (!selectedVoice && voices.length > 0) {
+                    selectedVoice = voices[0];
+                }
+                
+                // Vérifier si on a une voix
+                if (!selectedVoice) {
+                    alert("Aucune voix n'est disponible. Veuillez recharger la page ou essayer sur un autre navigateur.");
+                    return;
+                }
+                
+                // Détermine la langue à utiliser
+                const lang = selectedVoice.lang || 'fr-FR';
+                
+                // Créer un utterance pour chaque fragment et les mettre en file d'attente
+                chunks.forEach((chunk, index) => {
+                    const utterance = new SpeechSynthesisUtterance(chunk);
+                    utterance.voice = selectedVoice;
+                    utterance.rate = rate;
+                    utterance.lang = lang;
+                    
+                    // Ajouter un événement pour détecter la fin de la lecture du fragment
+                    if (index < chunks.length - 1) {
+                        utterance.onend = () => {
+                            console.log(`Morceau ${index + 1}/${chunks.length} terminé`);
+                        };
+                    }
+                    
+                    // Mémoriser l'utterance en cours seulement pour le premier fragment
+                    if (index === 0) {
+                        currentUtterance = utterance;
+                    }
+                    
+                    speechSynth.speak(utterance);
+                });
             }
         });
 
@@ -495,9 +557,23 @@
 
         // Initialisation
         window.addEventListener('DOMContentLoaded', () => {
-            populateVoiceList();
+            // Tentative multiple de chargement des voix
+            let attempts = 0;
+            const maxAttempts = 5;
+            
+            function tryLoadVoices() {
+                attempts++;
+                const voices = speechSynth.getVoices();
+                
+                if (voices.length > 0) {
+                    populateVoiceList();
+                } else if (attempts < maxAttempts) {
+                    setTimeout(tryLoadVoices, 500);
+                }
+            }
+            
+            tryLoadVoices();
         });
     </script>
 </body>
 </html>
-
