@@ -67,23 +67,27 @@
             font-size: 2.2em;
         }
 
-        .upload-zone {
-            width: 80%;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f8fafc;
-            border: 2px dashed var(--primary-color);
-            border-radius: 12px;
-            text-align: center;
-            font-size: 1.2FFem;
-            transition: all 0.3s ease;
+        #file-button {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
             cursor: pointer;
-            box-sizing: border-box;
+            font-size: 16px;
+            font-weight: 500;
+            font-family: "Roboto Mono", monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            flex: 1;
+            border: none;
         }
 
-        .upload-zone:hover {
-            background-color: #f0f9ff;
-            border-color: var(--primary-hover);
+        #file-button:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
         }
 
         .controls {
@@ -199,11 +203,11 @@
             transform: translateY(-2px);
         }
 
-        #stop-button {
+        #restart-button {
             background-color: #ef4444;
         }
 
-        #stop-button:hover {
+        #restart-button:hover {
             background-color: #dc2626;
             transform: translateY(-2px);
         }
@@ -259,7 +263,7 @@
                 width: 100%;
                 flex-direction: column;
                 align-items: stretch;
-                 font-family: "Roboto Mono", monospace;
+                font-family: "Roboto Mono", monospace;
             }
 
             select {
@@ -275,11 +279,6 @@
             button {
                 width: 100%;
             }
-
-            .upload-zone {
-                width: 100%;
-                margin: 10px 0;
-            }
             
             #text-area {
                 width: 100%;
@@ -291,11 +290,6 @@
 <body>
     <div class="container">
         <h1>✨ Text-to-Speech Reader</h1>
-
-        <div class="upload-zone" id="dropZone">
-            <input type="file" id="fileInput" class="file-input" accept=".txt">
-            <p>📄 Glissez-déposez un fichier texte ici<br>ou cliquez pour choisir un fichier</p>
-        </div>
         
         <div class="controls">
             <div class="control-group">
@@ -317,8 +311,13 @@
         </div>
 
         <div class="text-controls">
-            <button id="paste-button">📋 Coller</button>
-            <button id="clear-button">🗑️ Effacer</button>      
+            <button id="file-button">📄 Choisir un fichier .txt</button>
+            <input type="file" id="fileInput" class="file-input" accept=".txt">
+        </div>
+
+        <div class="text-controls">
+            <button id="paste-button">📋 Coller un texte</button>
+            <button id="clear-button">🗑️ Effacer le contenu</button>         
         </div>
 
         <textarea id="text-area" placeholder="Collez votre texte ici pour commencer la lecture..."></textarea>
@@ -326,31 +325,50 @@
         <div class="button-container">
             <button id="play-button">▶️ Lire</button>
             <button id="pause-button">⏸️ Pause</button>
-            <button id="stop-button">⏹️ Stop</button>
+            <button id="restart-button">🔄 Redémarrer</button>
         </div>
     </div>
 
     <script>
         let speechSynth = window.speechSynthesis;
-        let currentUtterance = null;
+        let utterance = null;
+        let isPaused = false;
+        let lastReadPosition = 0;
+        const TEXT_STORAGE_KEY = 'ttsReaderText';
+        const POSITION_STORAGE_KEY = 'ttsReaderPosition';
+        const VOICE_STORAGE_KEY = 'ttsReaderVoice';
+        const SPEED_STORAGE_KEY = 'ttsReaderSpeed';
+
+        // Fonction pour sauvegarder l'état actuel
+        function saveCurrentState() {
+            const textArea = document.getElementById('text-area');
+            const voiceSelect = document.getElementById('voice-select');
+            const speedSelect = document.getElementById('speed');
+
+            // Sauvegarder le texte actuel
+            localStorage.setItem(TEXT_STORAGE_KEY, textArea.value);
+            
+            // Sauvegarder la position approximative
+            localStorage.setItem(POSITION_STORAGE_KEY, lastReadPosition.toString());
+            
+            // Sauvegarder les préférences utilisateur
+            if (voiceSelect.value) {
+                localStorage.setItem(VOICE_STORAGE_KEY, voiceSelect.value);
+            }
+            
+            if (speedSelect.value) {
+                localStorage.setItem(SPEED_STORAGE_KEY, speedSelect.value);
+            }
+        }
 
         function isMobileDevice() {
             return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        }
-
-        // Fonction pour afficher toutes les voix disponibles dans la console
-        function debugVoices() {
-            const voices = speechSynth.getVoices();
-            console.log("Voix disponibles:", voices.map(v => `${v.name} (${v.lang})`));
         }
 
         function populateVoiceList() {
             const voiceSelect = document.getElementById('voice-select');
             voiceSelect.innerHTML = '';
             const voices = speechSynth.getVoices();
-            
-            // Debug - afficher toutes les voix disponibles
-            debugVoices();
             
             // Pour les smartphones - limiter aux voix spécifiques
             if (isMobileDevice()) {
@@ -423,7 +441,6 @@
                     const option = document.createElement('option');
                     option.textContent = `${voice.name} (${voice.lang})`;
                     option.value = voices.indexOf(voice);
-                    if (index === 0) option.selected = true;
                     voiceSelect.appendChild(option);
                 });
                 
@@ -436,6 +453,25 @@
                     voiceSelect.appendChild(option);
                 }
             }
+            
+            // Restaurer la voix précédemment sélectionnée si disponible
+            const savedVoice = localStorage.getItem(VOICE_STORAGE_KEY);
+            if (savedVoice && voiceSelect.options.length > 0) {
+                // Vérifier si la voix sauvegardée existe toujours
+                for (let i = 0; i < voiceSelect.options.length; i++) {
+                    if (voiceSelect.options[i].value === savedVoice) {
+                        voiceSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+                
+                // Si la voix n'a pas été trouvée, sélectionner la première option
+                if (!voiceSelect.selectedIndex) {
+                    voiceSelect.selectedIndex = 0;
+                }
+            } else if (voiceSelect.options.length > 0) {
+                voiceSelect.selectedIndex = 0;
+            }
         }
 
         // Initialiser la liste des voix dès que possible
@@ -447,28 +483,13 @@
         }
 
         // Gestion du fichier
-        const dropZone = document.getElementById('dropZone');
+        const fileButton = document.getElementById('file-button');
         const fileInput = document.getElementById('fileInput');
         const textArea = document.getElementById('text-area');
 
-        dropZone.addEventListener('click', () => fileInput.click());
+        fileButton.addEventListener('click', () => fileInput.click());
 
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, preventDefaults);
-        });
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        dropZone.addEventListener('drop', handleDrop);
         fileInput.addEventListener('change', handleFileSelect);
-
-        function handleDrop(e) {
-            const file = e.dataTransfer.files[0];
-            readFile(file);
-        }
 
         function handleFileSelect(e) {
             const file = e.target.files[0];
@@ -480,6 +501,9 @@
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     textArea.value = e.target.result;
+                    // Réinitialiser la position car c'est un nouveau texte
+                    lastReadPosition = 0;
+                    saveCurrentState();
                 };
                 reader.readAsText(file);
             } else {
@@ -490,10 +514,9 @@
         // Fonction pour effacer le contenu
         document.getElementById('clear-button').addEventListener('click', () => {
             textArea.value = '';
-            // Arrêter la lecture si en cours
-            if (speechSynth.speaking) {
-                speechSynth.cancel();
-            }
+            stopSpeech();
+            lastReadPosition = 0;
+            saveCurrentState();
         });
 
         // Fonction pour coller le contenu du presse-papiers
@@ -501,36 +524,104 @@
             try {
                 const text = await navigator.clipboard.readText();
                 textArea.value = text;
+                // Réinitialiser la position car c'est un nouveau texte
+                lastReadPosition = 0;
+                saveCurrentState();
             } catch (err) {
                 alert('Impossible d\'accéder au presse-papiers. Veuillez vérifier les permissions de votre navigateur.');
                 console.error('Erreur lors de la lecture du presse-papiers:', err);
             }
         });
 
-        // Contrôles de lecture
-        document.getElementById('play-button').addEventListener('click', () => {
+        // Fonction pour arrêter complètement la synthèse vocale
+        function stopSpeech() {
             if (speechSynth.speaking) {
                 speechSynth.cancel();
             }
+            isPaused = false;
+            updatePlayButton();
+        }
 
+        // Mettre à jour le libellé du bouton Play
+        function updatePlayButton() {
+            const playBtn = document.getElementById('play-button');
+            
+            if (isPaused) {
+                playBtn.innerHTML = '▶️ Reprendre';
+            } else if (lastReadPosition > 0) {
+                playBtn.innerHTML = '▶️ Continuer';
+            } else {
+                playBtn.innerHTML = '▶️ Lire';
+            }
+        }
+
+        // Contrôles de lecture
+        document.getElementById('play-button').addEventListener('click', () => {
+            // Si on est en pause, on reprend la lecture
+            if (speechSynth.speaking && speechSynth.paused) {
+                speechSynth.resume();
+                isPaused = false;
+                updatePlayButton();
+                return;
+            }
+            
+            // Si une lecture est déjà en cours (et pas en pause), on l'arrête
+            if (speechSynth.speaking && !speechSynth.paused) {
+                speechSynth.cancel();
+            }
+            
+            // On commence une nouvelle lecture
             const text = document.getElementById('text-area').value.trim();
             if (text) {
-                const textWithoutLineBreaks = text.replace(/\n/g, ' ');
-                currentUtterance = new SpeechSynthesisUtterance(textWithoutLineBreaks);
+                // Vérifier si c'est le même texte que celui sauvegardé
+                const savedText = localStorage.getItem(TEXT_STORAGE_KEY);
+                const savedPosition = parseInt(localStorage.getItem(POSITION_STORAGE_KEY) || '0');
+                
+                // Si c'est le même texte et qu'il y a une position sauvegardée, commencer à cette position
+                if (savedText === text && savedPosition > 0 && savedPosition < text.length) {
+                    const textToRead = text.substring(savedPosition);
+                    utterance = new SpeechSynthesisUtterance(textToRead);
+                    lastReadPosition = savedPosition;
+                } else {
+                    // Sinon, commencer depuis le début
+                    utterance = new SpeechSynthesisUtterance(text);
+                    lastReadPosition = 0;
+                }
                 
                 const selectedVoice = document.getElementById('voice-select').value;
                 const voices = speechSynth.getVoices();
-                currentUtterance.voice = voices[selectedVoice];
-                currentUtterance.rate = parseFloat(document.getElementById('speed').value);
+                utterance.voice = voices[selectedVoice];
+                utterance.rate = parseFloat(document.getElementById('speed').value);
                 
                 // Définir la langue en fonction de la voix sélectionnée
-                if (currentUtterance.voice) {
-                    currentUtterance.lang = currentUtterance.voice.lang;
+                if (utterance.voice) {
+                    utterance.lang = utterance.voice.lang;
                 } else {
-                    currentUtterance.lang = 'fr-FR';
+                    utterance.lang = 'fr-FR';
                 }
-
-                speechSynth.speak(currentUtterance);
+                
+                // Utiliser l'événement onboundary pour suivre la position
+                utterance.onboundary = function(event) {
+                    if (event.name === 'word' || event.name === 'sentence') {
+                        lastReadPosition += event.charIndex;
+                        // Limiter la fréquence des sauvegardes
+                        if (event.name === 'sentence') {
+                            saveCurrentState();
+                        }
+                    }
+                };
+                
+                // Gérer la fin de la lecture
+                utterance.onend = function() {
+                    isPaused = false;
+                    // Si on arrive à la fin, réinitialiser la position
+                    lastReadPosition = 0;
+                    saveCurrentState();
+                    updatePlayButton();
+                };
+                
+                speechSynth.speak(utterance);
+                updatePlayButton();
             }
         });
 
@@ -538,19 +629,112 @@
             if (speechSynth.speaking) {
                 if (speechSynth.paused) {
                     speechSynth.resume();
+                    isPaused = false;
                 } else {
                     speechSynth.pause();
+                    isPaused = true;
+                    // Sauvegarder l'état lors de la mise en pause
+                    saveCurrentState();
                 }
+                updatePlayButton();
             }
         });
 
-        document.getElementById('stop-button').addEventListener('click', () => {
-            speechSynth.cancel();
+        document.getElementById('restart-button').addEventListener('click', () => {
+            // Arrêter la lecture en cours
+            stopSpeech();
+            
+            // Réinitialiser la position
+            lastReadPosition = 0;
+            saveCurrentState();
+            updatePlayButton();
+            
+            // Commencer une nouvelle lecture depuis le début
+            const text = document.getElementById('text-area').value.trim();
+            if (text) {
+                utterance = new SpeechSynthesisUtterance(text);
+                
+                const selectedVoice = document.getElementById('voice-select').value;
+                const voices = speechSynth.getVoices();
+                utterance.voice = voices[selectedVoice];
+                utterance.rate = parseFloat(document.getElementById('speed').value);
+                
+                // Définir la langue en fonction de la voix sélectionnée
+                if (utterance.voice) {
+                    utterance.lang = utterance.voice.lang;
+                } else {
+                    utterance.lang = 'fr-FR';
+                }
+                
+                // Même gestionnaires d'événements que pour la lecture normale
+                utterance.onboundary = function(event) {
+                    if (event.name === 'word' || event.name === 'sentence') {
+                        lastReadPosition += event.charIndex;
+                        if (event.name === 'sentence') {
+                            saveCurrentState();
+                        }
+                    }
+                };
+                
+                utterance.onend = function() {
+                    isPaused = false;
+                    lastReadPosition = 0;
+                    saveCurrentState();
+                    updatePlayButton();
+                };
+                
+                speechSynth.speak(utterance);
+            }
         });
+
+        // Charger le texte sauvegardé au démarrage
+        function loadSavedContent() {
+            // Restaurer le texte
+            const savedText = localStorage.getItem(TEXT_STORAGE_KEY);
+            if (savedText) {
+                textArea.value = savedText;
+            }
+            
+            // Restaurer la vitesse
+            const savedSpeed = localStorage.getItem(SPEED_STORAGE_KEY);
+            if (savedSpeed) {
+                const speedSelect = document.getElementById('speed');
+                for (let i = 0; i < speedSelect.options.length; i++) {
+                    if (speedSelect.options[i].value === savedSpeed) {
+                        speedSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+            
+            // Récupérer la position
+            lastReadPosition = parseInt(localStorage.getItem(POSITION_STORAGE_KEY) || '0');
+            updatePlayButton();
+        }
+
+        // Sauvegarder les modifications du texte
+        textArea.addEventListener('input', function() {
+            // Si le texte change, réinitialiser la position
+            if (textArea.value !== localStorage.getItem(TEXT_STORAGE_KEY)) {
+                lastReadPosition = 0;
+            }
+            saveCurrentState();
+            updatePlayButton();
+        });
+        
+        // Sauvegarder les changements de voix et de vitesse
+        document.getElementById('voice-select').addEventListener('change', saveCurrentState);
+        document.getElementById('speed').addEventListener('change', saveCurrentState);
 
         // Initialisation
         window.addEventListener('DOMContentLoaded', () => {
             populateVoiceList();
+            loadSavedContent();
+        });
+
+        // Sauvegarder l'état avant de quitter la page
+        window.addEventListener('beforeunload', function() {
+            saveCurrentState();
         });
     </script>
 </body>
