@@ -20,6 +20,12 @@
             --warning-hover: #ea580c;
         }
 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         .jetbrains-mono {
             font-family: "JetBrains Mono", monospace;
             font-optical-sizing: auto;
@@ -35,8 +41,6 @@
         }
 
         body {
-            margin: 0;
-            padding: 0;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -45,7 +49,6 @@
             background: linear-gradient(135deg, var(--bg-color) 0%, #e0f2fe 100%);
             color: var(--text-color);
             overflow-x: hidden;
-            width: 100%;
             box-sizing: border-box;
         }
 
@@ -57,7 +60,6 @@
             background-color: var(--container-bg);
             border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            box-sizing: border-box;
         }
 
         h1 {
@@ -99,7 +101,6 @@
             background-color: #f8fafc;
             border-radius: 12px;
             flex-wrap: wrap;
-            box-sizing: border-box;
         }
 
         .control-group {
@@ -143,7 +144,6 @@
             line-height: 1.6;
             resize: vertical;
             transition: border-color 0.3s ease;
-            box-sizing: border-box;
         }
 
         #text-area:focus {
@@ -234,61 +234,63 @@
             display: none;
         }
 
+        .margin-bottom {
+            margin-bottom: 10px;
+        }
+
         @media (max-width: 768px) {
-            body {
-                padding: 0;
-                margin: 0;
-                width: 100vw;
-            }
-            
             .container {
-                width: 100%;
-                margin: 15px;
-                padding: 0px;
-                border-radius: 0;
+                width: 92%;
+                margin: 10px auto;
+                padding: 20px;
+                border-radius: 12px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 20px;
             }
 
             .controls {
                 flex-direction: column;
                 align-items: stretch;
-                width: 100%;
-                margin: 10px 0;
-                gap: 10px;
-                font-size: 16px;
-                font-weight: 500;
-                font-family: "Roboto Mono", monospace;
+                padding: 12px;
+                gap: 12px;
             }
 
             .control-group {
-                width: 100%;
                 flex-direction: column;
-                align-items: stretch;
-                font-family: "Roboto Mono", monospace;
+                align-items: flex-start;
+            }
+
+            label {
+                margin-bottom: 5px;
             }
 
             select {
                 width: 100%;
             }
 
-            .button-container, .text-controls {
+            .text-controls {
                 flex-direction: column;
-                width: 100%;
+                gap: 10px;
+            }
+
+            .button-container {
+                flex-direction: column;
                 gap: 10px;
             }
 
             button {
-                width: auto;
-                margin-left: 10px;
-                margin-right: 18px;
-            }
-            
-            #text-area {
                 width: 100%;
-                margin: 10px 0;
+                padding: 12px 0;
+                margin: 0;
+                height: 48px;
             }
 
-            .margin-bottom {
-                margin-bottom: 10px;
+            #text-area {
+                padding: 15px;
+                margin: 15px 0;
             }
         }
     </style>
@@ -317,7 +319,7 @@
         </div>
 
         <div class="text-controls margin-bottom">
-            <button id="file-button">📄 Choisir un fichier texte</button>
+            <button id="file-button">📄 Choisir un fichier .txt</button>
             <input type="file" id="fileInput" class="file-input" accept=".txt">
         </div>
 
