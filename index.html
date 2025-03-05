@@ -355,20 +355,19 @@
             <button id="restart-button">⭮ Redémarrer</button>
         </div>
     </div>
-
     <script>
-        let speechSynth = window.speechSynthesis;
-        let utterance = null;
-        let isPaused = false;
-        let lastReadPosition = 0;
-        const TEXT_STORAGE_KEY = 'ttsReaderText';
-        const POSITION_STORAGE_KEY = 'ttsReaderPosition';
-        const VOICE_STORAGE_KEY = 'ttsReaderVoice';
-        const SPEED_STORAGE_KEY = 'ttsReaderSpeed';
-        const PAUSED_STORAGE_KEY = 'ttsReaderPaused';
+    let speechSynth = window.speechSynthesis;
+    let utterance = null;
+    let isPaused = false;
+    let lastReadPosition = 0;
+    const TEXT_STORAGE_KEY = 'ttsReaderText';
+    const POSITION_STORAGE_KEY = 'ttsReaderPosition';
+    const VOICE_STORAGE_KEY = 'ttsReaderVoice';
+    const SPEED_STORAGE_KEY = 'ttsReaderSpeed';
+    const PAUSED_STORAGE_KEY = 'ttsReaderPaused';
 
-        // Fonction pour sauvegarder l'état actuel
-        function saveCurrentState() {
+    // Fonction pour sauvegarder l'état actuel
+    function saveCurrentState() {
         const textArea = document.getElementById('text-area');
         const voiceSelect = document.getElementById('voice-select');
         const speedSelect = document.getElementById('speed');
@@ -390,89 +389,152 @@
         if (speedSelect.value) {
             localStorage.setItem(SPEED_STORAGE_KEY, speedSelect.value);
         }
-        }
+    }
 
-        function isMobileDevice() {
+    function isMobileDevice() {
         return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        }
+    }
 
-        function populateVoiceList() {
+    function populateVoiceList() {
         const voiceSelect = document.getElementById('voice-select');
         voiceSelect.innerHTML = '';
         const voices = speechSynth.getVoices();
 
-        // Filtrer les voix par langue d'intérêt
-        const frenchVoices = voices.filter(voice => voice.lang.includes('fr'));
-        const dutchVoices = voices.filter(voice => 
-            voice.lang.includes('nl-NL') || 
-            voice.lang.startsWith('nl')
-        );
-        const flemishVoices = voices.filter(voice => voice.lang.includes('nl-BE'));
+        // Déterminer si nous sommes sur un appareil mobile
+        const isMobile = isMobileDevice();
 
-        // Combiner toutes les voix d'intérêt, en évitant les doublons
-        const priorityVoicesMap = new Map();
+        // Voix spécifiques pour smartphone
+        const specificVoices = {
+            french: "Thomas", // Voix française
+            english: "Daniel", // Voix anglaise
+            dutch: "Xander"   // Voix néerlandaise
+        };
 
-        // Fonction pour simplifier les noms de voix
-        function simplifyVoiceName(name, lang) {
-            // Supprimer "Microsoft" et autres préfixes de fournisseurs
-            let simplified = name.replace("Microsoft ", "");
-            // Supprimer les suffixes spécifiques à la langue
-            simplified = simplified.replace(/ - French.*$/, "");
-            simplified = simplified.replace(/ - English.*$/, "");
-            simplified = simplified.replace(/ - Dutch.*$/, "");
-            simplified = simplified.replace(/ - Flemish.*$/, "");
-            // Pour les autres langues, juste supprimer tout après un tiret
-            simplified = simplified.replace(/ -.*$/, "");
+        if (isMobile) {
+            // Sur smartphone, uniquement les 3 voix spécifiques
+            const priorityVoicesMap = new Map();
             
-            return simplified;
-        }
+            // Chercher les voix spécifiques
+            voices.forEach(voice => {
+                // Recherche de Thomas (français)
+                if (voice.name.includes(specificVoices.french) && voice.lang.includes('fr')) {
+                    priorityVoicesMap.set(voice.name, {
+                        voice: voice,
+                        priority: 1,
+                        label: `${voice.name} (FR)`
+                    });
+                }
+                // Recherche de Daniel (anglais)
+                else if (voice.name.includes(specificVoices.english) && voice.lang.includes('en')) {
+                    priorityVoicesMap.set(voice.name, {
+                        voice: voice,
+                        priority: 2,
+                        label: `${voice.name} (GB)`
+                    });
+                }
+                // Recherche de Xander (néerlandais)
+                else if (voice.name.includes(specificVoices.dutch) && voice.lang.includes('nl')) {
+                    priorityVoicesMap.set(voice.name, {
+                        voice: voice,
+                        priority: 3,
+                        label: `${voice.name} (NL)`
+                    });
+                }
+            });
 
-        // Fonction pour obtenir le code de langue court
-        function getShortLangCode(langCode) {
-            if (langCode.includes('fr')) return "FR";
-            if (langCode.includes('nl-BE')) return "BE";
-            if (langCode.includes('nl')) return "NL";
-            if (langCode.includes('en')) return "EN";
-            // Retourner les deux premiers caractères en majuscule pour les autres langues
-            return langCode.substring(0, 2).toUpperCase();
-        }
+            // Convertir la Map en array et trier par priorité
+            const priorityVoices = Array.from(priorityVoicesMap.values())
+                .sort((a, b) => a.priority - b.priority);
 
-        // Ajouter les voix françaises d'abord
-        frenchVoices.forEach(voice => {
-            if (!priorityVoicesMap.has(voice.name)) {
-                priorityVoicesMap.set(voice.name, {
-                    voice: voice,
-                    priority: 1,
-                    label: `${simplifyVoiceName(voice.name, voice.lang)} (${getShortLangCode(voice.lang)})`
-                });
+            // Ajouter les voix au sélecteur
+            priorityVoices.forEach((voiceInfo) => {
+                const option = document.createElement('option');
+                option.textContent = voiceInfo.label;
+                option.value = voices.indexOf(voiceInfo.voice);
+                voiceSelect.appendChild(option);
+            });
+
+            // Si aucune des voix spécifiques n'a été trouvée, ajouter un message
+            if (voiceSelect.options.length === 0) {
+                const option = document.createElement('option');
+                option.textContent = "Aucune voix spécifique disponible";
+                option.value = -1;
+                voiceSelect.appendChild(option);
+                console.warn("Aucune des voix spécifiques n'a été trouvée");
             }
-        });
+        } else {
+            // Pour PC et tablette, garder le comportement original
+            // Filtrer les voix par langue d'intérêt
+            const frenchVoices = voices.filter(voice => voice.lang.includes('fr'));
+            const dutchVoices = voices.filter(voice => 
+                voice.lang.includes('nl-NL') || 
+                voice.lang.startsWith('nl')
+            );
+            const flemishVoices = voices.filter(voice => voice.lang.includes('nl-BE'));
 
-        // Ajouter les voix flamandes ensuite
-        flemishVoices.forEach(voice => {
-            if (!priorityVoicesMap.has(voice.name)) {
-                priorityVoicesMap.set(voice.name, {
-                    voice: voice,
-                    priority: 2,
-                    label: `${simplifyVoiceName(voice.name, voice.lang)} (${getShortLangCode(voice.lang)})`
-                });
+            // Combiner toutes les voix d'intérêt, en évitant les doublons
+            const priorityVoicesMap = new Map();
+
+            // Fonction pour simplifier les noms de voix
+            function simplifyVoiceName(name, lang) {
+                // Supprimer "Microsoft" et autres préfixes de fournisseurs
+                let simplified = name.replace("Microsoft ", "");
+                // Supprimer les suffixes spécifiques à la langue
+                simplified = simplified.replace(/ - French.*$/, "");
+                simplified = simplified.replace(/ - English.*$/, "");
+                simplified = simplified.replace(/ - Dutch.*$/, "");
+                simplified = simplified.replace(/ - Flemish.*$/, "");
+                // Pour les autres langues, juste supprimer tout après un tiret
+                simplified = simplified.replace(/ -.*$/, "");
+                
+                return simplified;
             }
-        });
 
-        // Ajouter les voix néerlandaises ensuite
-        dutchVoices.forEach(voice => {
-            // Éviter de dupliquer les voix flamandes qui sont déjà dans la liste
-            if (!priorityVoicesMap.has(voice.name)) {
-                priorityVoicesMap.set(voice.name, {
-                    voice: voice,
-                    priority: 3,
-                    label: `${simplifyVoiceName(voice.name, voice.lang)} (${getShortLangCode(voice.lang)})`
-                });
+            // Fonction pour obtenir le code de langue court
+            function getShortLangCode(langCode) {
+                if (langCode.includes('fr')) return "FR";
+                if (langCode.includes('nl-BE')) return "BE";
+                if (langCode.includes('nl')) return "NL";
+                if (langCode.includes('en')) return "EN";
+                // Retourner les deux premiers caractères en majuscule pour les autres langues
+                return langCode.substring(0, 2).toUpperCase();
             }
-        });
 
-        // Ajouter les autres voix ensuite, mais uniquement sur les appareils non mobiles
-        if (!isMobileDevice()) {
+            // Ajouter les voix françaises d'abord
+            frenchVoices.forEach(voice => {
+                if (!priorityVoicesMap.has(voice.name)) {
+                    priorityVoicesMap.set(voice.name, {
+                        voice: voice,
+                        priority: 1,
+                        label: `${simplifyVoiceName(voice.name, voice.lang)} (${getShortLangCode(voice.lang)})`
+                    });
+                }
+            });
+
+            // Ajouter les voix flamandes ensuite
+            flemishVoices.forEach(voice => {
+                if (!priorityVoicesMap.has(voice.name)) {
+                    priorityVoicesMap.set(voice.name, {
+                        voice: voice,
+                        priority: 2,
+                        label: `${simplifyVoiceName(voice.name, voice.lang)} (${getShortLangCode(voice.lang)})`
+                    });
+                }
+            });
+
+            // Ajouter les voix néerlandaises ensuite
+            dutchVoices.forEach(voice => {
+                // Éviter de dupliquer les voix flamandes qui sont déjà dans la liste
+                if (!priorityVoicesMap.has(voice.name)) {
+                    priorityVoicesMap.set(voice.name, {
+                        voice: voice,
+                        priority: 3,
+                        label: `${simplifyVoiceName(voice.name, voice.lang)} (${getShortLangCode(voice.lang)})`
+                    });
+                }
+            });
+
+            // Ajouter les autres voix ensuite
             voices.forEach(voice => {
                 // Ne pas inclure les voix Google et éviter les duplications
                 if (!voice.name.includes('Google') && !priorityVoicesMap.has(voice.name)) {
@@ -483,36 +545,27 @@
                     });
                 }
             });
-        }
 
-        // Convertir la Map en array, trier par priorité et ajouter au sélecteur
-        const priorityVoices = Array.from(priorityVoicesMap.values())
-            .sort((a, b) => a.priority - b.priority);
+            // Convertir la Map en array, trier par priorité et ajouter au sélecteur
+            const priorityVoices = Array.from(priorityVoicesMap.values())
+                .sort((a, b) => a.priority - b.priority);
 
-        // Si sur mobile et aucune voix prioritaire, ajoutez au moins la première voix disponible
-        if (isMobileDevice() && priorityVoices.length === 0 && voices.length > 0) {
-            priorityVoices.push({
-                voice: voices[0],
-                priority: 5,
-                label: `${simplifyVoiceName(voices[0].name, voices[0].lang)} (${getShortLangCode(voices[0].lang)})`
+            // Ajouter les voix au sélecteur
+            priorityVoices.forEach((voiceInfo) => {
+                const option = document.createElement('option');
+                option.textContent = voiceInfo.label;
+                option.value = voices.indexOf(voiceInfo.voice);
+                voiceSelect.appendChild(option);
             });
-        }
 
-        // Ajouter les voix au sélecteur
-        priorityVoices.forEach((voiceInfo, index) => {
-            const option = document.createElement('option');
-            option.textContent = voiceInfo.label;
-            option.value = voices.indexOf(voiceInfo.voice);
-            voiceSelect.appendChild(option);
-        });
-
-        // S'il n'y a aucune voix dans la liste, ajouter un message
-        if (voiceSelect.options.length === 0) {
-            const option = document.createElement('option');
-            option.textContent = "Aucune voix disponible";
-            option.value = -1;
-            voiceSelect.appendChild(option);
-            console.warn("Aucune voix n'a été trouvée dans le navigateur");
+            // S'il n'y a aucune voix dans la liste, ajouter un message
+            if (voiceSelect.options.length === 0) {
+                const option = document.createElement('option');
+                option.textContent = "Aucune voix disponible";
+                option.value = -1;
+                voiceSelect.appendChild(option);
+                console.warn("Aucune voix n'a été trouvée dans le navigateur");
+            }
         }
 
         // Restaurer la voix précédemment sélectionnée si disponible
@@ -533,31 +586,31 @@
         } else if (voiceSelect.options.length > 0) {
             voiceSelect.selectedIndex = 0;
         }
-        }
+    }
 
-        // Initialiser la liste des voix dès que possible
-        if (speechSynth.onvoiceschanged !== undefined) {
+    // Initialiser la liste des voix dès que possible
+    if (speechSynth.onvoiceschanged !== undefined) {
         speechSynth.onvoiceschanged = populateVoiceList;
-        } else {
+    } else {
         // Fallback pour certains navigateurs
         setTimeout(populateVoiceList, 500);
-        }
+    }
 
-        // Gestion du fichier
-        const fileButton = document.getElementById('file-button');
-        const fileInput = document.getElementById('fileInput');
-        const textArea = document.getElementById('text-area');
+    // Gestion du fichier
+    const fileButton = document.getElementById('file-button');
+    const fileInput = document.getElementById('fileInput');
+    const textArea = document.getElementById('text-area');
 
-        fileButton.addEventListener('click', () => fileInput.click());
+    fileButton.addEventListener('click', () => fileInput.click());
 
-        fileInput.addEventListener('change', handleFileSelect);
+    fileInput.addEventListener('change', handleFileSelect);
 
-        function handleFileSelect(e) {
+    function handleFileSelect(e) {
         const file = e.target.files[0];
         readFile(file);
-        }
+    }
 
-        function readFile(file) {
+    function readFile(file) {
         if (file && file.type === 'text/plain') {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -572,20 +625,20 @@
         } else {
             alert('Veuillez sélectionner un fichier texte (.txt)');
         }
-        }
+    }
 
-        // Fonction pour effacer le contenu
-        document.getElementById('clear-button').addEventListener('click', () => {
+    // Fonction pour effacer le contenu
+    document.getElementById('clear-button').addEventListener('click', () => {
         textArea.value = '';
         stopSpeech();
         lastReadPosition = 0;
         isPaused = false;
         saveCurrentState();
         updatePlayButton();
-        });
+    });
 
-        // Fonction pour coller le contenu du presse-papiers
-        document.getElementById('paste-button').addEventListener('click', async () => {
+    // Fonction pour coller le contenu du presse-papiers
+    document.getElementById('paste-button').addEventListener('click', async () => {
         try {
             const text = await navigator.clipboard.readText();
             textArea.value = text;
@@ -598,19 +651,19 @@
             alert('Impossible d\'accéder au presse-papiers. Veuillez vérifier les permissions de votre navigateur.');
             console.error('Erreur lors de la lecture du presse-papiers:', err);
         }
-        });
+    });
 
-        // Fonction pour arrêter complètement la synthèse vocale
-        function stopSpeech() {
+    // Fonction pour arrêter complètement la synthèse vocale
+    function stopSpeech() {
         if (speechSynth.speaking) {
             speechSynth.cancel();
         }
         isPaused = false;
         updatePlayButton();
-        }
+    }
 
-        // Mettre à jour le libellé du bouton Play
-        function updatePlayButton() {
+    // Mettre à jour le libellé du bouton Play
+    function updatePlayButton() {
         const playBtn = document.getElementById('play-button');
 
         if (isPaused) {
@@ -620,10 +673,10 @@
         } else {
             playBtn.innerHTML = '▶ Lire';
         }
-        }
+    }
 
-        // Contrôles de lecture
-        document.getElementById('play-button').addEventListener('click', () => {
+    // Contrôles de lecture
+    document.getElementById('play-button').addEventListener('click', () => {
         // Si on est en pause après rechargement de la page, traiter spécialement
         if (isPaused && !speechSynth.speaking) {
             // Créer une nouvelle utterance à partir de la position sauvegardée
@@ -735,9 +788,9 @@
             isPaused = false;
             updatePlayButton();
         }
-        });
+    });
 
-        document.getElementById('pause-button').addEventListener('click', () => {
+    document.getElementById('pause-button').addEventListener('click', () => {
         if (speechSynth.speaking) {
             if (speechSynth.paused) {
                 speechSynth.resume();
@@ -750,9 +803,9 @@
             }
             updatePlayButton();
         }
-        });
+    });
 
-        document.getElementById('restart-button').addEventListener('click', () => {
+    document.getElementById('restart-button').addEventListener('click', () => {
         // Arrêter la lecture en cours
         stopSpeech();
 
@@ -800,10 +853,10 @@
             
             speechSynth.speak(utterance);
         }
-        });
+    });
 
-        // Charger le texte sauvegardé au démarrage
-        function loadSavedContent() {
+    // Charger le texte sauvegardé au démarrage
+    function loadSavedContent() {
         // Restaurer le texte
         const savedText = localStorage.getItem(TEXT_STORAGE_KEY);
         if (savedText) {
@@ -829,10 +882,10 @@
         isPaused = localStorage.getItem(PAUSED_STORAGE_KEY) === 'true';
 
         updatePlayButton();
-        }
+    }
 
-        // Sauvegarder les modifications du texte
-        textArea.addEventListener('input', function() {
+    // Sauvegarder les modifications du texte
+    textArea.addEventListener('input', function() {
         // Si le texte change, réinitialiser la position
         if (textArea.value !== localStorage.getItem(TEXT_STORAGE_KEY)) {
             lastReadPosition = 0;
@@ -840,14 +893,14 @@
         }
         saveCurrentState();
         updatePlayButton();
-        });
+    });
 
-        // Sauvegarder les changements de voix et de vitesse
-        document.getElementById('voice-select').addEventListener('change', saveCurrentState);
-        document.getElementById('speed').addEventListener('change', saveCurrentState);
+    // Sauvegarder les changements de voix et de vitesse
+    document.getElementById('voice-select').addEventListener('change', saveCurrentState);
+    document.getElementById('speed').addEventListener('change', saveCurrentState);
 
-        // Initialisation
-        window.addEventListener('DOMContentLoaded', () => {
+    // Initialisation
+    window.addEventListener('DOMContentLoaded', () => {
         populateVoiceList();
         loadSavedContent();
 
@@ -871,12 +924,12 @@
                 }
             }, 5000);
         }
-        });
+    });
 
-        // Sauvegarder l'état avant de quitter la page
-        window.addEventListener('beforeunload', function() {
+    // Sauvegarder l'état avant de quitter la page
+    window.addEventListener('beforeunload', function() {
         saveCurrentState();
-        }); 
-    </script>
+    }); 
+</script>
 </body>
 </html>
