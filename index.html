@@ -243,8 +243,8 @@
             
             .container {
                 width: 100%;
-                margin: 0;
-                padding: 15px;
+                margin: 15px;
+                padding: 0px;
                 border-radius: 0;
             }
 
@@ -277,12 +277,18 @@
             }
 
             button {
-                width: 100%;
+                width: auto;
+                margin-left: 10px;
+                margin-right: 18px;
             }
             
             #text-area {
                 width: 100%;
                 margin: 10px 0;
+            }
+
+            .margin-bottom {
+                margin-bottom: 10px;
             }
         }
     </style>
@@ -310,8 +316,8 @@
             </div>
         </div>
 
-        <div class="text-controls">
-            <button id="file-button">📄 Choisir un fichier .txt</button>
+        <div class="text-controls margin-bottom">
+            <button id="file-button">📄 Choisir un fichier texte</button>
             <input type="file" id="fileInput" class="file-input" accept=".txt">
         </div>
 
@@ -338,6 +344,7 @@
         const POSITION_STORAGE_KEY = 'ttsReaderPosition';
         const VOICE_STORAGE_KEY = 'ttsReaderVoice';
         const SPEED_STORAGE_KEY = 'ttsReaderSpeed';
+        const PAUSED_STORAGE_KEY = 'ttsReaderPaused';
 
         // Fonction pour sauvegarder l'état actuel
         function saveCurrentState() {
@@ -350,6 +357,9 @@
             
             // Sauvegarder la position approximative
             localStorage.setItem(POSITION_STORAGE_KEY, lastReadPosition.toString());
+            
+            // Sauvegarder l'état de pause
+            localStorage.setItem(PAUSED_STORAGE_KEY, isPaused.toString());
             
             // Sauvegarder les préférences utilisateur
             if (voiceSelect.value) {
@@ -503,7 +513,9 @@
                     textArea.value = e.target.result;
                     // Réinitialiser la position car c'est un nouveau texte
                     lastReadPosition = 0;
+                    isPaused = false;
                     saveCurrentState();
+                    updatePlayButton();
                 };
                 reader.readAsText(file);
             } else {
@@ -516,7 +528,9 @@
             textArea.value = '';
             stopSpeech();
             lastReadPosition = 0;
+            isPaused = false;
             saveCurrentState();
+            updatePlayButton();
         });
 
         // Fonction pour coller le contenu du presse-papiers
@@ -526,7 +540,9 @@
                 textArea.value = text;
                 // Réinitialiser la position car c'est un nouveau texte
                 lastReadPosition = 0;
+                isPaused = false;
                 saveCurrentState();
+                updatePlayButton();
             } catch (err) {
                 alert('Impossible d\'accéder au presse-papiers. Veuillez vérifier les permissions de votre navigateur.');
                 console.error('Erreur lors de la lecture du presse-papiers:', err);
@@ -557,7 +573,52 @@
 
         // Contrôles de lecture
         document.getElementById('play-button').addEventListener('click', () => {
-            // Si on est en pause, on reprend la lecture
+            // Si on est en pause après rechargement de la page, traiter spécialement
+            if (isPaused && !speechSynth.speaking) {
+                // Créer une nouvelle utterance à partir de la position sauvegardée
+                const text = document.getElementById('text-area').value.trim();
+                if (text && lastReadPosition > 0 && lastReadPosition < text.length) {
+                    const textToRead = text.substring(lastReadPosition);
+                    utterance = new SpeechSynthesisUtterance(textToRead);
+                    
+                    const selectedVoice = document.getElementById('voice-select').value;
+                    const voices = speechSynth.getVoices();
+                    utterance.voice = voices[selectedVoice];
+                    utterance.rate = parseFloat(document.getElementById('speed').value);
+                    
+                    // Définir la langue en fonction de la voix sélectionnée
+                    if (utterance.voice) {
+                        utterance.lang = utterance.voice.lang;
+                    } else {
+                        utterance.lang = 'fr-FR';
+                    }
+                    
+                    // Utiliser l'événement onboundary pour suivre la position
+                    utterance.onboundary = function(event) {
+                        if (event.name === 'word' || event.name === 'sentence') {
+                            lastReadPosition += event.charIndex;
+                            if (event.name === 'sentence') {
+                                saveCurrentState();
+                            }
+                        }
+                    };
+                    
+                    // Gérer la fin de la lecture
+                    utterance.onend = function() {
+                        isPaused = false;
+                        lastReadPosition = 0;
+                        saveCurrentState();
+                        updatePlayButton();
+                    };
+                    
+                    speechSynth.speak(utterance);
+                    isPaused = false;
+                    updatePlayButton();
+                    return;
+                }
+            }
+            
+            // Si on est en pause pendant la session actuelle, on reprend la lecture
             if (speechSynth.speaking && speechSynth.paused) {
                 speechSynth.resume();
                 isPaused = false;
@@ -573,15 +634,10 @@
             // On commence une nouvelle lecture
             const text = document.getElementById('text-area').value.trim();
             if (text) {
-                // Vérifier si c'est le même texte que celui sauvegardé
-                const savedText = localStorage.getItem(TEXT_STORAGE_KEY);
-                const savedPosition = parseInt(localStorage.getItem(POSITION_STORAGE_KEY) || '0');
-                
-                // Si c'est le même texte et qu'il y a une position sauvegardée, commencer à cette position
-                if (savedText === text && savedPosition > 0 && savedPosition < text.length) {
-                    const textToRead = text.substring(savedPosition);
+                // Vérifier si c'est le même texte que celui sauvegardé et s'il y a une position
+                if (lastReadPosition > 0 && lastReadPosition < text.length) {
+                    const textToRead = text.substring(lastReadPosition);
                     utterance = new SpeechSynthesisUtterance(textToRead);
-                    lastReadPosition = savedPosition;
                 } else {
                     // Sinon, commencer depuis le début
                     utterance = new SpeechSynthesisUtterance(text);
@@ -621,6 +677,7 @@
                 };
                 
                 speechSynth.speak(utterance);
+                isPaused = false;
                 updatePlayButton();
             }
         });
@@ -646,6 +703,7 @@
             
             // Réinitialiser la position
             lastReadPosition = 0;
+            isPaused = false;
             saveCurrentState();
             updatePlayButton();
             
@@ -709,6 +767,10 @@
             
             // Récupérer la position
             lastReadPosition = parseInt(localStorage.getItem(POSITION_STORAGE_KEY) || '0');
+            
+            // Restaurer l'état de pause
+            isPaused = localStorage.getItem(PAUSED_STORAGE_KEY) === 'true';
+            
             updatePlayButton();
         }
 
@@ -717,6 +779,7 @@
             // Si le texte change, réinitialiser la position
             if (textArea.value !== localStorage.getItem(TEXT_STORAGE_KEY)) {
                 lastReadPosition = 0;
+                isPaused = false;
             }
             saveCurrentState();
             updatePlayButton();
