@@ -14,6 +14,10 @@
             --bg-color: #f0f9ff;
             --container-bg: #ffffff;
             --text-color: #1e293b;
+            --secondary-color: #10b981;
+            --secondary-hover: #059669;
+            --warning-color: #f97316;
+            --warning-hover: #ea580c;
         }
 
         .jetbrains-mono {
@@ -152,6 +156,14 @@
             width: 100%;
         }
 
+        .text-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
         button {
             padding: 12px 25px;
             font-size: 16px;
@@ -196,6 +208,24 @@
             transform: translateY(-2px);
         }
 
+        #clear-button {
+            background-color: var(--warning-color);
+        }
+
+        #clear-button:hover {
+            background-color: var(--warning-hover);
+            transform: translateY(-2px);
+        }
+
+        #paste-button {
+            background-color: var(--secondary-color);
+        }
+
+        #paste-button:hover {
+            background-color: var(--secondary-hover);
+            transform: translateY(-2px);
+        }
+
         .file-input {
             display: none;
         }
@@ -236,7 +266,7 @@
                 width: 100%;
             }
 
-            .button-container {
+            .button-container, .text-controls {
                 flex-direction: column;
                 width: 100%;
                 gap: 10px;
@@ -284,6 +314,11 @@
                     <option value="2">2x</option>
                 </select>
             </div>
+        </div>
+
+        <div class="text-controls">
+            <button id="clear-button">🗑️ Effacer</button>
+            <button id="paste-button">📋 Coller</button>
         </div>
 
         <textarea id="text-area" placeholder="Collez votre texte ici pour commencer la lecture..."></textarea>
@@ -451,6 +486,26 @@
                 alert('Veuillez sélectionner un fichier texte (.txt)');
             }
         }
+
+        // Fonction pour effacer le contenu
+        document.getElementById('clear-button').addEventListener('click', () => {
+            textArea.value = '';
+            // Arrêter la lecture si en cours
+            if (speechSynth.speaking) {
+                speechSynth.cancel();
+            }
+        });
+
+        // Fonction pour coller le contenu du presse-papiers
+        document.getElementById('paste-button').addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                textArea.value = text;
+            } catch (err) {
+                alert('Impossible d\'accéder au presse-papiers. Veuillez vérifier les permissions de votre navigateur.');
+                console.error('Erreur lors de la lecture du presse-papiers:', err);
+            }
+        });
 
         // Contrôles de lecture
         document.getElementById('play-button').addEventListener('click', () => {
