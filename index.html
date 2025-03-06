@@ -9,23 +9,24 @@
     <title>Text-to-Speech Reader</title>
     <style>
     :root {
-        /* Palette Journal Sépia renforcée */
-        --primary-color: #733c2a;        /* Bordeaux foncé (titre) */
-        --primary-hover: #5d2e21;        /* Bordeaux foncé hover */
-        --bg-color: #e9d9be;             /* Beige papier ancien plus foncé (fond) - MODIFIÉ */
-        --container-bg: #f3e6d0;         /* Crème papier ancien (conteneur) - MODIFIÉ */
-        --text-color: #4a392c;           /* Brun foncé (texte) - MODIFIÉ légèrement plus foncé */
-        --secondary-color: #2e483d;      /* Vert foncé (boutons secondaires) - MODIFIÉ */
-        --secondary-hover: #243a32;      /* Vert foncé hover - MODIFIÉ */
-        --warning-color: #bc5215;        /* Orange-rouille (bouton warning) */
-        --warning-hover: #a44512;        /* Orange-rouille hover */
-        --file-button-color: #733c2a;    /* Bordeaux foncé (bouton fichier) - MODIFIÉ */
-        --file-button-hover: #5d2e21;    /* Bordeaux foncé hover - MODIFIÉ */
-        --pause-button-color: #2e483d;   /* Vert foncé (bouton pause) */
-        --pause-button-hover: #243a32;   /* Vert foncé hover */
-        --input-bg: #faf3e3;             /* Crème clair (champs input) */
-        --input-border: #c9b99f;         /* Beige moyen (bordures) - MODIFIÉ plus foncé */
+        /* Palette Journal Sépia adoucie */
+        --primary-color: #8d5c4a;        /* Bordeaux plus doux */
+        --primary-hover: #7a4e3e;        /* Bordeaux hover plus doux */
+        --bg-color: #e9d9be;             /* Beige papier ancien (fond) - inchangé */
+        --container-bg: #f3e6d0;         /* Crème papier ancien (conteneur) - inchangé */
+        --text-color: #4a392c;           /* Brun foncé (texte) - inchangé */
+        --secondary-color: #4a6359;      /* Vert moins intense */
+        --secondary-hover: #3d534b;      /* Vert hover moins intense */
+        --warning-color: #b97550;        /* Orange-rouille moins vif */
+        --warning-hover: #a06544;        /* Orange-rouille hover moins vif */
+        --file-button-color: #8d5c4a;    /* Même que primary-color */
+        --file-button-hover: #7a4e3e;    /* Même que primary-hover */
+        --pause-button-color: #4a6359;   /* Même que secondary-color */
+        --pause-button-hover: #3d534b;   /* Même que secondary-hover */
+        --input-bg: #faf3e3;             /* Crème clair (champs input) - inchangé */
+        --input-border: #c9b99f;         /* Beige moyen (bordures) - inchangé */
     }
+    
 
     * {
         box-sizing: border-box;
@@ -190,6 +191,7 @@
         font-size: 16px;
         font-weight: 600;
         font-family: "Courier", monospace;
+        opacity: 1; /* Légère transparence pour un effet plus doux */
         cursor: pointer;
         border: none;
         border-radius: 8px;
